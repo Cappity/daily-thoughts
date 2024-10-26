@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-firestore.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Thoughts</title>
@@ -105,84 +107,102 @@
         </div>
     </div>
 
-    <script>
-        // Function to post thoughts
-        function postThought() {
-            const user = document.getElementById('userSelect').value;
-            const thought = document.getElementById('thoughtInput').value;
-            const image = document.getElementById('imageInput').files[0];
-            const timestamp = new Date().toLocaleString();
+<script>
+    // Your Firebase configuration
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
 
-            if (thought || image) {
-                let imageUrl = '';
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-                // Handle image upload (optional)
-                if (image) {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        imageUrl = event.target.result; // Use base64 for simplicity
-                        saveThought(user, thought, imageUrl, timestamp);
-                    };
-                    reader.readAsDataURL(image);
-                } else {
+    // Function to post thoughts
+    async function postThought() {
+        const user = document.getElementById('userSelect').value;
+        const thought = document.getElementById('thoughtInput').value;
+        const image = document.getElementById('imageInput').files[0];
+        const timestamp = new Date().toLocaleString();
+
+        if (thought || image) {
+            let imageUrl = '';
+
+            // Handle image upload (optional, for simplicity use base64)
+            if (image) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    imageUrl = event.target.result; // Use base64
                     saveThought(user, thought, imageUrl, timestamp);
-                }
-
-                // Clear input fields
-                document.getElementById('thoughtInput').value = '';
-                document.getElementById('imageInput').value = '';
-                document.getElementById('userSelect').selectedIndex = 0; // Reset to default
+                };
+                reader.readAsDataURL(image);
             } else {
-                alert('Please enter a thought or upload an image.');
+                saveThought(user, thought, imageUrl, timestamp);
             }
+
+            // Clear input fields
+            document.getElementById('thoughtInput').value = '';
+            document.getElementById('imageInput').value = '';
+            document.getElementById('userSelect').selectedIndex = 0; // Reset to default
+        } else {
+            alert('Please enter a thought or upload an image.');
         }
+    }
 
-        // Function to save thought to local storage
-        function saveThought(user, thought, imageUrl, timestamp) {
-            const thoughts = JSON.parse(localStorage.getItem('thoughts')) || [];
-            thoughts.push({ user, thought, imageUrl, timestamp });
-            localStorage.setItem('thoughts', JSON.stringify(thoughts));
-            loadThoughts(); // Refresh the displayed thoughts
-        }
+    // Function to save thought to Firestore
+    async function saveThought(user, thought, imageUrl, timestamp) {
+        await db.collection('thoughts').add({
+            user,
+            thought,
+            imageUrl,
+            timestamp
+        });
+        loadThoughts(); // Refresh the displayed thoughts
+    }
 
-        // Load thoughts from local storage
-        function loadThoughts() {
-            const thoughtsContainer = document.getElementById('thoughtsContainer');
-            thoughtsContainer.innerHTML = ''; // Clear existing thoughts
+    // Load thoughts from Firestore
+    async function loadThoughts() {
+        const thoughtsContainer = document.getElementById('thoughtsContainer');
+        thoughtsContainer.innerHTML = ''; // Clear existing thoughts
 
-            const thoughts = JSON.parse(localStorage.getItem('thoughts')) || [];
-            thoughts.forEach(data => {
-                const entry = document.createElement('div');
-                entry.classList.add('thought-entry');
+        const snapshot = await db.collection('thoughts').orderBy('timestamp', 'desc').get();
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const entry = document.createElement('div');
+            entry.classList.add('thought-entry');
 
-                const userInfo = document.createElement('p');
-                userInfo.textContent = `${data.user} says:`;
-                userInfo.style.fontWeight = 'bold';
-                entry.appendChild(userInfo);
+            const userInfo = document.createElement('p');
+            userInfo.textContent = `${data.user} says:`;
+            userInfo.style.fontWeight = 'bold';
+            entry.appendChild(userInfo);
 
-                if (data.thought) {
-                    const thoughtText = document.createElement('p');
-                    thoughtText.textContent = data.thought;
-                    entry.appendChild(thoughtText);
-                }
+            if (data.thought) {
+                const thoughtText = document.createElement('p');
+                thoughtText.textContent = data.thought;
+                entry.appendChild(thoughtText);
+            }
 
-                if (data.imageUrl) {
-                    const img = document.createElement('img');
-                    img.src = data.imageUrl;
-                    entry.appendChild(img);
-                }
+            if (data.imageUrl) {
+                const img = document.createElement('img');
+                img.src = data.imageUrl;
+                entry.appendChild(img);
+            }
 
-                const timeInfo = document.createElement('span');
-                timeInfo.className = 'timestamp';
-                timeInfo.textContent = `Posted on: ${data.timestamp}`;
-                entry.appendChild(timeInfo);
+            const timeInfo = document.createElement('span');
+            timeInfo.className = 'timestamp';
+            timeInfo.textContent = `Posted on: ${data.timestamp}`;
+            entry.appendChild(timeInfo);
 
-                thoughtsContainer.appendChild(entry);
-            });
-        }
+            thoughtsContainer.appendChild(entry);
+        });
+    }
 
-        // Initial load of thoughts
-        loadThoughts();
-    </script>
+    // Initial load of thoughts
+    loadThoughts();
+</script>
 </body>
 </html>
