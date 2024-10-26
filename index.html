@@ -1,89 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-firestore.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Thoughts</title>
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #eaeaea;
-        }
-        header {
-            background: #007BFF;
-            color: white;
-            padding: 10px 20px;
-            text-align: center;
-            border-bottom: 4px solid #0056b3;
-        }
-        .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        h1, h2 {
-            color: #333;
-        }
-        .input-section, .thought-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background: #f9f9f9;
-        }
-        textarea {
-            width: 100%;
-            height: 100px;
-            margin-bottom: 10px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-        }
-        select, input[type="file"], button {
-            margin-bottom: 10px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 100%;
-            font-size: 16px;
-        }
-        button {
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .thought-entry {
-            margin: 20px 0;
-            padding: 10px;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .thought-entry img {
-            max-width: 100%;
-            border-radius: 5px;
-        }
-        .timestamp {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
+        /* Your existing styles here */
     </style>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.20.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/9.20.0/firebase-firestore.js";
+
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBg_E_5ZiZYXJluCOiKfoeJitFZ01E5aBk",
+            authDomain: "aily-thoughts-7f3a5.firebaseapp.com",
+            projectId: "daily-thoughts-7f3a5",
+            storageBucket: "daily-thoughts-7f3a5.appspot.com",
+            messagingSenderId: "942306462849",
+            appId: "1:942306462849:web:bfed8467b343e256e35180"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Function to post thoughts
+        async function postThought() {
+            const user = document.getElementById('userSelect').value;
+            const thought = document.getElementById('thoughtInput').value;
+            const image = document.getElementById('imageInput').files[0];
+            const timestamp = new Date().toLocaleString();
+
+            if (thought || image) {
+                let imageUrl = '';
+
+                // Handle image upload (optional, for simplicity use base64)
+                if (image) {
+                    const reader = new FileReader();
+                    reader.onload = async function(event) {
+                        imageUrl = event.target.result; // Use base64
+                        await saveThought(user, thought, imageUrl, timestamp);
+                    };
+                    reader.readAsDataURL(image);
+                } else {
+                    await saveThought(user, thought, imageUrl, timestamp);
+                }
+
+                // Clear input fields
+                document.getElementById('thoughtInput').value = '';
+                document.getElementById('imageInput').value = '';
+                document.getElementById('userSelect').selectedIndex = 0; // Reset to default
+            } else {
+                alert('Please enter a thought or upload an image.');
+            }
+        }
+
+        // Function to save thought to Firestore
+        async function saveThought(user, thought, imageUrl, timestamp) {
+            await addDoc(collection(db, 'thoughts'), {
+                user,
+                thought,
+                imageUrl,
+                timestamp
+            });
+            loadThoughts(); // Refresh the displayed thoughts
+        }
+
+        // Load thoughts from Firestore
+        async function loadThoughts() {
+            const thoughtsContainer = document.getElementById('thoughtsContainer');
+            thoughtsContainer.innerHTML = ''; // Clear existing thoughts
+
+            const q = query(collection(db, 'thoughts'), orderBy('timestamp', 'desc'));
+            const snapshot = await getDocs(q);
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const entry = document.createElement('div');
+                entry.classList.add('thought-entry');
+
+                const userInfo = document.createElement('p');
+                userInfo.textContent = `${data.user} says:`;
+                userInfo.style.fontWeight = 'bold';
+                entry.appendChild(userInfo);
+
+                if (data.thought) {
+                    const thoughtText = document.createElement('p');
+                    thoughtText.textContent = data.thought;
+                    entry.appendChild(thoughtText);
+                }
+
+                if (data.imageUrl) {
+                    const img = document.createElement('img');
+                    img.src = data.imageUrl;
+                    entry.appendChild(img);
+                }
+
+                const timeInfo = document.createElement('span');
+                timeInfo.className = 'timestamp';
+                timeInfo.textContent = `Posted on: ${data.timestamp}`;
+                entry.appendChild(timeInfo);
+
+                thoughtsContainer.appendChild(entry);
+            });
+        }
+
+        // Initial load of thoughts
+        loadThoughts();
+    </script>
 </head>
 <body>
     <header>
@@ -106,107 +130,5 @@
             <div id="thoughtsContainer"></div>
         </div>
     </div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.20.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/9.20.0/firebase-firestore.js";
-
-    // Your Firebase configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyBg_E_5ZiZYXJluCOiKfoeJitFZ01E5aBk",
-        authDomain: "aily-thoughts-7f3a5.firebaseapp.com",
-        projectId: "daily-thoughts-7f3a5",
-        storageBucket: "daily-thoughts-7f3a5.appspot.com",
-        messagingSenderId: "942306462849",
-        appId: "1:942306462849:web:bfed8467b343e256e35180"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    // Function to post thoughts
-    async function postThought() {
-        const user = document.getElementById('userSelect').value;
-        const thought = document.getElementById('thoughtInput').value;
-        const image = document.getElementById('imageInput').files[0];
-        const timestamp = new Date().toLocaleString();
-
-        if (thought || image) {
-            let imageUrl = '';
-
-            // Handle image upload (optional, for simplicity use base64)
-            if (image) {
-                const reader = new FileReader();
-                reader.onload = async function(event) {
-                    imageUrl = event.target.result; // Use base64
-                    await saveThought(user, thought, imageUrl, timestamp);
-                };
-                reader.readAsDataURL(image);
-            } else {
-                await saveThought(user, thought, imageUrl, timestamp);
-            }
-
-            // Clear input fields
-            document.getElementById('thoughtInput').value = '';
-            document.getElementById('imageInput').value = '';
-            document.getElementById('userSelect').selectedIndex = 0; // Reset to default
-        } else {
-            alert('Please enter a thought or upload an image.');
-        }
-    }
-
-    // Function to save thought to Firestore
-    async function saveThought(user, thought, imageUrl, timestamp) {
-        await addDoc(collection(db, 'thoughts'), {
-            user,
-            thought,
-            imageUrl,
-            timestamp
-        });
-        loadThoughts(); // Refresh the displayed thoughts
-    }
-
-    // Load thoughts from Firestore
-    async function loadThoughts() {
-        const thoughtsContainer = document.getElementById('thoughtsContainer');
-        thoughtsContainer.innerHTML = ''; // Clear existing thoughts
-
-        const q = query(collection(db, 'thoughts'), orderBy('timestamp', 'desc'));
-        const snapshot = await getDocs(q);
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const entry = document.createElement('div');
-            entry.classList.add('thought-entry');
-
-            const userInfo = document.createElement('p');
-            userInfo.textContent = `${data.user} says:`;
-            userInfo.style.fontWeight = 'bold';
-            entry.appendChild(userInfo);
-
-            if (data.thought) {
-                const thoughtText = document.createElement('p');
-                thoughtText.textContent = data.thought;
-                entry.appendChild(thoughtText);
-            }
-
-            if (data.imageUrl) {
-                const img = document.createElement('img');
-                img.src = data.imageUrl;
-                entry.appendChild(img);
-            }
-
-            const timeInfo = document.createElement('span');
-            timeInfo.className = 'timestamp';
-            timeInfo.textContent = `Posted on: ${data.timestamp}`;
-            entry.appendChild(timeInfo);
-
-            thoughtsContainer.appendChild(entry);
-        });
-    }
-
-    // Initial load of thoughts
-    loadThoughts();
-</script>
 </body>
 </html>
