@@ -107,7 +107,10 @@
         </div>
     </div>
 
-<script>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.20.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/9.20.0/firebase-firestore.js";
+
     // Your Firebase configuration
     const firebaseConfig = {
         apiKey: "AIzaSyBg_E_5ZiZYXJluCOiKfoeJitFZ01E5aBk",
@@ -119,8 +122,8 @@
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     // Function to post thoughts
     async function postThought() {
@@ -135,13 +138,13 @@
             // Handle image upload (optional, for simplicity use base64)
             if (image) {
                 const reader = new FileReader();
-                reader.onload = function(event) {
+                reader.onload = async function(event) {
                     imageUrl = event.target.result; // Use base64
-                    saveThought(user, thought, imageUrl, timestamp);
+                    await saveThought(user, thought, imageUrl, timestamp);
                 };
                 reader.readAsDataURL(image);
             } else {
-                saveThought(user, thought, imageUrl, timestamp);
+                await saveThought(user, thought, imageUrl, timestamp);
             }
 
             // Clear input fields
@@ -155,7 +158,7 @@
 
     // Function to save thought to Firestore
     async function saveThought(user, thought, imageUrl, timestamp) {
-        await db.collection('thoughts').add({
+        await addDoc(collection(db, 'thoughts'), {
             user,
             thought,
             imageUrl,
@@ -169,7 +172,8 @@
         const thoughtsContainer = document.getElementById('thoughtsContainer');
         thoughtsContainer.innerHTML = ''; // Clear existing thoughts
 
-        const snapshot = await db.collection('thoughts').orderBy('timestamp', 'desc').get();
+        const q = query(collection(db, 'thoughts'), orderBy('timestamp', 'desc'));
+        const snapshot = await getDocs(q);
         snapshot.forEach(doc => {
             const data = doc.data();
             const entry = document.createElement('div');
