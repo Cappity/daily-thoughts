@@ -46,7 +46,7 @@
             font-size: 16px;
             box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
         }
-        select {
+        select, input[type="file"], button {
             margin-bottom: 10px;
             padding: 10px;
             border: 1px solid #ccc;
@@ -54,18 +54,11 @@
             width: 100%;
             font-size: 16px;
         }
-        input[type="file"] {
-            margin-bottom: 10px;
-            display: block;
-        }
         button {
             background-color: #007BFF;
             color: white;
             border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
             transition: background-color 0.3s;
         }
         button:hover {
@@ -113,11 +106,7 @@
     </div>
 
     <script>
-        const thoughtsKey = 'thoughts';
-
-        // Load thoughts from localStorage on page load
-        document.addEventListener('DOMContentLoaded', loadThoughts);
-
+        // Function to post thoughts
         function postThought() {
             const user = document.getElementById('userSelect').value;
             const thought = document.getElementById('thoughtInput').value;
@@ -127,70 +116,73 @@
             if (thought || image) {
                 let imageUrl = '';
 
+                // Handle image upload (optional)
                 if (image) {
-                    imageUrl = URL.createObjectURL(image);
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        imageUrl = event.target.result; // Use base64 for simplicity
+                        saveThought(user, thought, imageUrl, timestamp);
+                    };
+                    reader.readAsDataURL(image);
+                } else {
+                    saveThought(user, thought, imageUrl, timestamp);
                 }
-
-                const newThought = { user, thought, imageUrl, timestamp };
-                saveThought(newThought);
 
                 // Clear input fields
                 document.getElementById('thoughtInput').value = '';
                 document.getElementById('imageInput').value = '';
-                document.getElementById('userSelect').selectedIndex = 0;
-
-                // Load thoughts
-                loadThoughts();
+                document.getElementById('userSelect').selectedIndex = 0; // Reset to default
             } else {
                 alert('Please enter a thought or upload an image.');
             }
         }
 
-        function saveThought(thought) {
-            const thoughts = getThoughts();
-            thoughts.push(thought);
-            localStorage.setItem(thoughtsKey, JSON.stringify(thoughts));
+        // Function to save thought to local storage
+        function saveThought(user, thought, imageUrl, timestamp) {
+            const thoughts = JSON.parse(localStorage.getItem('thoughts')) || [];
+            thoughts.push({ user, thought, imageUrl, timestamp });
+            localStorage.setItem('thoughts', JSON.stringify(thoughts));
+            loadThoughts(); // Refresh the displayed thoughts
         }
 
-        function getThoughts() {
-            const storedThoughts = localStorage.getItem(thoughtsKey);
-            return storedThoughts ? JSON.parse(storedThoughts) : [];
-        }
-
+        // Load thoughts from local storage
         function loadThoughts() {
             const thoughtsContainer = document.getElementById('thoughtsContainer');
             thoughtsContainer.innerHTML = ''; // Clear existing thoughts
 
-            const thoughts = getThoughts();
-            thoughts.forEach(entry => {
-                const thoughtEntry = document.createElement('div');
-                thoughtEntry.classList.add('thought-entry');
+            const thoughts = JSON.parse(localStorage.getItem('thoughts')) || [];
+            thoughts.forEach(data => {
+                const entry = document.createElement('div');
+                entry.classList.add('thought-entry');
 
                 const userInfo = document.createElement('p');
-                userInfo.textContent = `${entry.user} says:`;
+                userInfo.textContent = `${data.user} says:`;
                 userInfo.style.fontWeight = 'bold';
-                thoughtEntry.appendChild(userInfo);
+                entry.appendChild(userInfo);
 
-                if (entry.thought) {
+                if (data.thought) {
                     const thoughtText = document.createElement('p');
-                    thoughtText.textContent = entry.thought;
-                    thoughtEntry.appendChild(thoughtText);
+                    thoughtText.textContent = data.thought;
+                    entry.appendChild(thoughtText);
                 }
 
-                if (entry.imageUrl) {
+                if (data.imageUrl) {
                     const img = document.createElement('img');
-                    img.src = entry.imageUrl;
-                    thoughtEntry.appendChild(img);
+                    img.src = data.imageUrl;
+                    entry.appendChild(img);
                 }
 
                 const timeInfo = document.createElement('span');
                 timeInfo.className = 'timestamp';
-                timeInfo.textContent = `Posted on: ${entry.timestamp}`;
-                thoughtEntry.appendChild(timeInfo);
+                timeInfo.textContent = `Posted on: ${data.timestamp}`;
+                entry.appendChild(timeInfo);
 
-                thoughtsContainer.appendChild(thoughtEntry);
+                thoughtsContainer.appendChild(entry);
             });
         }
+
+        // Initial load of thoughts
+        loadThoughts();
     </script>
 </body>
 </html>
