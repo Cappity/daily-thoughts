@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Thoughts</title>
-    <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-storage.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -116,24 +113,12 @@
     </div>
 
     <script>
-        // Your Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyDBbu6y1P30YfoYYwAETA9zgiu-hZ42LSg",
-            authDomain: "commentsystemkk.firebaseapp.com",
-            projectId: "commentsystemkk",
-            storageBucket: "commentsystemkk.appspot.com",
-            messagingSenderId: "990216118286",
-            appId: "1:990216118286:web:5e90cf694e40bec5ca1c5f
-"
-        };
+        const thoughtsKey = 'thoughts';
 
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const storage = firebase.storage();
+        // Load thoughts from localStorage on page load
+        document.addEventListener('DOMContentLoaded', loadThoughts);
 
-        // Function to post thoughts
-        async function postThought() {
+        function postThought() {
             const user = document.getElementById('userSelect').value;
             const thought = document.getElementById('thoughtInput').value;
             const image = document.getElementById('imageInput').files[0];
@@ -142,26 +127,17 @@
             if (thought || image) {
                 let imageUrl = '';
 
-                // Upload image if provided
                 if (image) {
-                    const storageRef = storage.ref();
-                    const imageRef = storageRef.child(`images/${image.name}`);
-                    await imageRef.put(image);
-                    imageUrl = await imageRef.getDownloadURL();
+                    imageUrl = URL.createObjectURL(image);
                 }
 
-                // Save thought to Firestore
-                await db.collection('thoughts').add({
-                    user,
-                    thought,
-                    imageUrl,
-                    timestamp
-                });
+                const newThought = { user, thought, imageUrl, timestamp };
+                saveThought(newThought);
 
                 // Clear input fields
                 document.getElementById('thoughtInput').value = '';
                 document.getElementById('imageInput').value = '';
-                document.getElementById('userSelect').selectedIndex = 0; // Reset to default
+                document.getElementById('userSelect').selectedIndex = 0;
 
                 // Load thoughts
                 loadThoughts();
@@ -170,45 +146,51 @@
             }
         }
 
-        // Load thoughts from Firestore
-        async function loadThoughts() {
+        function saveThought(thought) {
+            const thoughts = getThoughts();
+            thoughts.push(thought);
+            localStorage.setItem(thoughtsKey, JSON.stringify(thoughts));
+        }
+
+        function getThoughts() {
+            const storedThoughts = localStorage.getItem(thoughtsKey);
+            return storedThoughts ? JSON.parse(storedThoughts) : [];
+        }
+
+        function loadThoughts() {
             const thoughtsContainer = document.getElementById('thoughtsContainer');
             thoughtsContainer.innerHTML = ''; // Clear existing thoughts
 
-            const snapshot = await db.collection('thoughts').orderBy('timestamp', 'desc').get();
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const entry = document.createElement('div');
-                entry.classList.add('thought-entry');
+            const thoughts = getThoughts();
+            thoughts.forEach(entry => {
+                const thoughtEntry = document.createElement('div');
+                thoughtEntry.classList.add('thought-entry');
 
                 const userInfo = document.createElement('p');
-                userInfo.textContent = `${data.user} says:`;
+                userInfo.textContent = `${entry.user} says:`;
                 userInfo.style.fontWeight = 'bold';
-                entry.appendChild(userInfo);
+                thoughtEntry.appendChild(userInfo);
 
-                if (data.thought) {
+                if (entry.thought) {
                     const thoughtText = document.createElement('p');
-                    thoughtText.textContent = data.thought;
-                    entry.appendChild(thoughtText);
+                    thoughtText.textContent = entry.thought;
+                    thoughtEntry.appendChild(thoughtText);
                 }
 
-                if (data.imageUrl) {
+                if (entry.imageUrl) {
                     const img = document.createElement('img');
-                    img.src = data.imageUrl;
-                    entry.appendChild(img);
+                    img.src = entry.imageUrl;
+                    thoughtEntry.appendChild(img);
                 }
 
                 const timeInfo = document.createElement('span');
                 timeInfo.className = 'timestamp';
-                timeInfo.textContent = `Posted on: ${data.timestamp}`;
-                entry.appendChild(timeInfo);
+                timeInfo.textContent = `Posted on: ${entry.timestamp}`;
+                thoughtEntry.appendChild(timeInfo);
 
-                thoughtsContainer.appendChild(entry);
+                thoughtsContainer.appendChild(thoughtEntry);
             });
         }
-
-        // Initial load of thoughts
-        loadThoughts();
     </script>
 </body>
 </html>
